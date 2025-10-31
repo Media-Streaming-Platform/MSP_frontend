@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 interface ContentItem {
   id: string;
@@ -15,12 +15,14 @@ interface ContentRowProps {
   showSeeAll?: boolean;
 }
 
-export default function ContentRow({ 
-  title, 
-  items, 
-  showProgress = false, 
-  showSeeAll = false 
+export default function ContentRow({
+  title,
+  items,
+  showProgress = false,
+  showSeeAll = false,
 }: ContentRowProps) {
+  const backgroundImageUrl = "https://image.tmdb.org/t/p/original/kHOfxq7cMTXyLbj0UmdoGhT540O.jpg";
+
   return (
     <section className="px-6 py-8">
       <div className="flex justify-between items-center mb-4">
@@ -31,23 +33,26 @@ export default function ContentRow({
           </button>
         )}
       </div>
-      
-      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+
+      <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {items.map((item) => (
-          <div key={item.id} className="flex-shrink-0 w-48">
+          <div key={item.id} className="flex-shrink-0 w-98">
             <div className="bg-gray-800 rounded-lg overflow-hidden group hover:scale-105 transition-transform">
-              {/* Placeholder for content image */}
-              <div className="w-full h-64 bg-gradient-to-br from-purple-600 to-blue-600 relative">
+              {/* Content image */}
+              <div
+                className="w-full h-64 bg-cover bg-center relative"
+                style={{ backgroundImage: `url('${backgroundImageUrl}')` }}
+              >
                 {showProgress && item.progress && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gray-700 h-1">
-                    <div 
+                    <div
                       className="bg-red-600 h-full"
                       style={{ width: `${item.progress}%` }}
                     />
                   </div>
                 )}
               </div>
-              
+
               <div className="p-3">
                 <h3 className="font-semibold text-sm mb-1">{item.title}</h3>
                 {item.duration && (

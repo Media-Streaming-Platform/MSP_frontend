@@ -15,44 +15,20 @@ export default function Header() {
           {/* Left Section - Logo and Navigation */}
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2" aria-label="StreamFlux Home">
+            <Link href="/" className="flex items-center gap-2" aria-label="Movie Streaming Platform Home">
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">SF</span>
+                <span className="text-white font-bold text-sm">MSP</span>
               </div>
-              <span className="text-white font-bold text-xl">StreamFlux</span>
+              <span className="text-white font-bold text-xl">Movie Streaming Platform</span>
             </Link>
 
             {/* Navigation Links - Hidden on mobile */}
             <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
               <Link 
                 href="/" 
-                className="text-white hover:text-gray-300 transition-colors font-medium"
+                className="text-white hover:text-gray-300 transition-colors font-medium relative"
               >
                 Home
-              </Link>
-              <Link 
-                href="/tv-shows" 
-                className="text-gray-400 hover:text-white transition-colors font-medium"
-              >
-                TV Shows
-              </Link>
-              <Link 
-                href="/movies" 
-                className="text-gray-400 hover:text-white transition-colors font-medium"
-              >
-                Movies
-              </Link>
-              <Link 
-                href="/new" 
-                className="text-gray-400 hover:text-white transition-colors font-medium"
-              >
-                New & Popular
-              </Link>
-              <Link 
-                href="/my-list" 
-                className="text-gray-400 hover:text-white transition-colors font-medium"
-              >
-                My List
               </Link>
             </nav>
           </div>
@@ -98,7 +74,7 @@ export default function Header() {
             {/* Notifications */}
             <button 
               className="text-gray-400 hover:text-white transition-colors p-2 relative"
-              aria-label="Notifications"
+              aria-label="View notifications"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM10.24 8.56a5.97 5.97 0 01-4.66-7.5 1 1 0 00-1.17-1.17 5.97 5.97 0 01-7.5 4.66 1 1 0 00-1.17 1.17 5.97 5.97 0 014.66 7.5 1 1 0 001.17 1.17 5.97 5.97 0 017.5-4.66 1 1 0 001.17-1.17z" />
@@ -113,9 +89,9 @@ export default function Header() {
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                // aria-label="User menu"
+                aria-label="Open user menu"
                 // aria-expanded={isProfileMenuOpen}
-                // aria-haspopup="true"
+                aria-haspopup="true"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-medium">U</span>
@@ -141,6 +117,7 @@ export default function Header() {
                     href="/profile" 
                     className="block px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
                     role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
                   >
                     Profile
                   </Link>
@@ -148,6 +125,7 @@ export default function Header() {
                     href="/settings" 
                     className="block px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
                     role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
                   >
                     Settings
                   </Link>
@@ -155,6 +133,7 @@ export default function Header() {
                     href="/help" 
                     className="block px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
                     role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
                   >
                     Help Center
                   </Link>
@@ -163,6 +142,7 @@ export default function Header() {
                     <button 
                       className="w-full text-left px-4 py-2 text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors"
                       role="menuitem"
+                      onClick={() => setIsProfileMenuOpen(false)}
                     >
                       Sign Out
                     </button>
@@ -176,19 +156,34 @@ export default function Header() {
         {/* Mobile Navigation */}
         <div className="md:hidden mt-4">
           <nav className="flex items-center justify-between overflow-x-auto pb-2" aria-label="Content categories">
-            <button className="text-white px-3 py-1 bg-red-600 rounded-full text-sm font-medium whitespace-nowrap">
+            <button 
+              className="text-white px-3 py-1 bg-red-600 rounded-full text-sm font-medium whitespace-nowrap"
+              aria-label="Show all content"
+            >
               All
             </button>
-            <button className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap">
+            <button 
+              className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap"
+              aria-label="Browse movies"
+            >
               Movies
             </button>
-            <button className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap">
+            <button 
+              className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap"
+              aria-label="Browse TV shows"
+            >
               TV Shows
             </button>
-            <button className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap">
+            <button 
+              className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap"
+              aria-label="Browse anime"
+            >
               Anime
             </button>
-            <button className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap">
+            <button 
+              className="text-gray-400 px-3 py-1 rounded-full text-sm font-medium hover:text-white whitespace-nowrap"
+              aria-label="Browse documentaries"
+            >
               Documentary
             </button>
           </nav>
