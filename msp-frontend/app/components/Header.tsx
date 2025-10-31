@@ -72,8 +72,8 @@ export default function Header() {
               {isFilterOpen && (
                 <div 
                   className="absolute right-0 top-12 bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-64 py-3 max-h-96 overflow-y-auto"
-                  role="menu"
-                  aria-orientation="vertical"
+                  // role="menu"
+                  // aria-orientation="vertical"
                 >
                   <div className="px-4 py-2 border-b border-gray-700">
                     <h3 className="text-white font-semibold">Filter by Genre</h3>
@@ -84,7 +84,7 @@ export default function Header() {
                       <button
                         key={genre}
                         className="w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm"
-                        role="menuitem"
+                        // role="menuitem"
                         onClick={() => {
                           setActiveFilter(genre.toLowerCase());
                           setIsFilterOpen(false);
@@ -98,7 +98,7 @@ export default function Header() {
                   <div className="border-t border-gray-700 pt-2">
                     <button 
                       className="w-full text-left px-4 py-2 text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors text-sm"
-                      role="menuitem"
+                      // role="menuitem"
                       onClick={() => {
                         setActiveFilter('all');
                         setIsFilterOpen(false);
@@ -165,7 +165,7 @@ export default function Header() {
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
                 aria-label="Open user menu"
-                aria-expanded={isProfileMenuOpen}
+                // aria-expanded={isProfileMenuOpen}
                 aria-haspopup="true"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -259,7 +259,7 @@ export default function Header() {
                 }`}
                 onClick={() => setActiveFilter(filter.id)}
                 aria-label={`Filter by ${filter.label}`}
-                aria-pressed={activeFilter === filter.id}
+                // aria-pressed={activeFilter === filter.id}
               >
                 {filter.label}
               </button>
