@@ -197,7 +197,7 @@ export default function ContentRow({
                 <div className="flex flex-wrap gap-1 mt-3">
                   {item.genres?.map((genre, index) => (
                     <span 
-                      key={index}
+                      key= {index}
                       className="bg-gray-700/50 text-gray-300 px-2 py-1 rounded text-xs"
                     >
                       {genre}
