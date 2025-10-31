@@ -42,12 +42,12 @@ export default function HeroSection() {
             >
               <span aria-hidden="true">▶</span> Play
             </button>
-            <button 
+            {/* <button 
               className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors"
               aria-label="Add Quantum Odyssey to My List"
             >
               <span aria-hidden="true">+</span> My List
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

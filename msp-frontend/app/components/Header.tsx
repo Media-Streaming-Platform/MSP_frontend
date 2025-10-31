@@ -36,7 +36,7 @@ export default function Header() {
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">MSP</span>
               </div>
-              <span className="text-white font-bold text-xl">Movie Streaming Platform</span>
+              <span className="text-white font-bold text-xl">Media Streaming Platform</span>
             </Link>
 
             {/* Navigation Links - Hidden on mobile */}
@@ -60,7 +60,7 @@ export default function Header() {
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className="text-gray-400 hover:text-white transition-colors p-2 flex items-center gap-1"
                 aria-label="Open filters"
-                aria-expanded={isFilterOpen}
+                // aria-expanded={isFilterOpen}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -151,12 +151,12 @@ export default function Header() {
               className="text-gray-400 hover:text-white transition-colors p-2 relative"
               aria-label="View notifications"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              {/* <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM10.24 8.56a5.97 5.97 0 01-4.66-7.5 1 1 0 00-1.17-1.17 5.97 5.97 0 01-7.5 4.66 1 1 0 00-1.17 1.17 5.97 5.97 0 014.66 7.5 1 1 0 001.17 1.17 5.97 5.97 0 017.5-4.66 1 1 0 001.17-1.17z" />
               </svg>
               <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 3
-              </span>
+              </span> */}
             </button>
 
             {/* Profile Menu */}
@@ -171,9 +171,9 @@ export default function Header() {
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-medium">U</span>
                 </div>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
               </button>
 
               {/* Profile Dropdown */}
