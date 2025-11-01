@@ -64,7 +64,7 @@ class ApiService {
     return this.fetchApi(`/category/get-by-id/${id}`);
   }
 
-  async createCategory(name: string): Promise<any> {
+  async createCategory(name: string): Promise<{ message: string; category: Category }> {
     return this.fetchApi('/category/create-category', {
       method: 'POST',
       body: JSON.stringify({ name }),
