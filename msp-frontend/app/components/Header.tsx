@@ -4,18 +4,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { apiService, Media, Category } from '../lib/api';
+import { useFilter } from '../context/FilterContext';
 
 export default function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Media[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { activeFilter, setActiveFilter, selectedCategory, setSelectedCategory } = useFilter();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -52,25 +54,7 @@ export default function Header() {
     }
   }, [isSearchOpen]);
 
-  // Close all menus when profile menu opens
-  useEffect(() => {
-    if (isProfileMenuOpen) {
-      setIsSearchOpen(false);
-      setIsMobileMenuOpen(false);
-      setIsFilterOpen(false);
-    }
-  }, [isProfileMenuOpen]);
-
-  // Close all menus when mobile menu opens
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      setIsSearchOpen(false);
-      setIsProfileMenuOpen(false);
-      setIsFilterOpen(false);
-    }
-  }, [isMobileMenuOpen]);
-
-  // Close menus when clicking outside
+  // Close all menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -107,7 +91,7 @@ export default function Header() {
     if (searchQuery.length > 2) {
       const timeoutId = setTimeout(() => {
         performSearch();
-      }, 300); // Debounce search
+      }, 300);
 
       return () => clearTimeout(timeoutId);
     } else {
@@ -119,6 +103,18 @@ export default function Header() {
     setIsSearchOpen(false);
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  const handleFilterSelect = (categoryId: string, categoryName: string) => {
+    setActiveFilter(categoryId);
+    setSelectedCategory(categoryName);
+    setIsFilterOpen(false);
+  };
+
+  const clearFilter = () => {
+    setActiveFilter('all');
+    setSelectedCategory(null);
+    setIsFilterOpen(false);
   };
 
   const handleSearchButtonClick = (e: React.MouseEvent) => {
@@ -172,11 +168,11 @@ export default function Header() {
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2" aria-label="Media Streaming Platform Home">
+            <Link href="/" className="flex items-center gap-2" aria-label="Faith Stream">
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">MSP</span>
+                <span className="text-white font-bold text-sm">FS</span>
               </div>
-          
+              <span className="text-white font-bold text-sm">Faith Stream</span>
             </Link>
           </div>
 
@@ -224,10 +220,7 @@ export default function Header() {
                     
                     <div className="py-2">
                       <button
-                        onClick={() => {
-                          setActiveFilter('all');
-                          setIsFilterOpen(false);
-                        }}
+                        onClick={clearFilter}
                         className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                           activeFilter === 'all'
                             ? 'bg-red-600 text-white'
@@ -243,10 +236,7 @@ export default function Header() {
                         categories.map((category) => (
                           <button
                             key={category._id}
-                            onClick={() => {
-                              setActiveFilter(category._id);
-                              setIsFilterOpen(false);
-                            }}
+                            onClick={() => handleFilterSelect(category._id, category.name)}
                             className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                               activeFilter === category._id
                                 ? 'bg-red-600 text-white'
@@ -442,10 +432,10 @@ export default function Header() {
               <span className="text-gray-400 text-sm">Active filter:</span>
               <div className="flex items-center gap-1 bg-red-600 px-3 py-1 rounded-full">
                 <span className="text-white text-sm">
-                  {categories.find(cat => cat._id === activeFilter)?.name || 'Unknown'}
+                  {selectedCategory || 'Selected Category'}
                 </span>
                 <button 
-                  onClick={() => setActiveFilter('all')}
+                  onClick={clearFilter}
                   className="text-white hover:text-gray-200 text-sm ml-1"
                   aria-label="Clear filter"
                 >
@@ -463,7 +453,7 @@ export default function Header() {
                   ? 'bg-red-600 text-white'
                   : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
-              onClick={() => setActiveFilter('all')}
+              onClick={clearFilter}
             >
               All
             </button>
@@ -479,7 +469,7 @@ export default function Header() {
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
                   }`}
-                  onClick={() => setActiveFilter(category._id)}
+                  onClick={() => handleFilterSelect(category._id, category.name)}
                 >
                   {category.name}
                 </button>

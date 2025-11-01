@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiService, Media } from '../lib/api';
+import { useRouter } from 'next/navigation';
 
 interface ContentRowProps {
   title: string;
@@ -10,6 +11,7 @@ interface ContentRowProps {
   genre?: string;
   showProgress?: boolean;
   showSeeAll?: boolean;
+  filter?: string; // Add this line
 }
 
 export default function ContentRow({
@@ -18,10 +20,12 @@ export default function ContentRow({
   genre,
   showProgress = false,
   showSeeAll = false,
+  filter, // Add this line
 }: ContentRowProps) {
   const [media, setMedia] = useState<Media[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,11 +38,7 @@ export default function ContentRow({
         } else if (category === 'featured') {
           data = await apiService.getFeaturedMedia();
         } else if (category === 'continue-watching') {
-          // For now, just show latest videos as "continue watching"
-          const response = await apiService.getAllMedia();
-          data = response.mediaList
-            .filter(item => item.type === 'video' && item.isPublished)
-            .slice(0, 5);
+          data = await apiService.getContinueWatching();
         } else if (genre) {
           const categories = await apiService.getAllCategories();
           const categoryObj = categories.find(cat => 
@@ -46,10 +46,24 @@ export default function ContentRow({
           );
           if (categoryObj) {
             data = await apiService.getMediaByCategory(categoryObj._id);
+          } else {
+            const response = await apiService.getAllMedia();
+            data = response.mediaList.filter(item => item.type === 'video');
           }
         } else {
           const response = await apiService.getAllMedia();
-          data = response.mediaList.filter(item => item.type === 'video').slice(0, 10);
+          data = response.mediaList.filter(item => item.type === 'video');
+        }
+
+        // Apply filter if provided - FIXED VERSION
+        if (filter && filter !== 'all') {
+          data = data.filter(item => {
+            // Safe check for categories
+            if (item.categories && typeof item.categories === 'object' && item.categories._id) {
+              return item.categories._id === filter;
+            }
+            return false;
+          });
         }
 
         setMedia(data);
@@ -62,34 +76,28 @@ export default function ContentRow({
     };
 
     fetchData();
-  }, [category, genre]);
+  }, [category, genre, filter]); // Add filter to dependencies
 
-  const handlePlayMedia = (mediaItem: Media, event: React.MouseEvent) => {
-    event.stopPropagation();
-    
-    // Log the media URL for debugging
-    const mediaUrl = apiService.getMediaUrl(mediaItem);
-    console.log('Playing media:', {
-      title: mediaItem.title,
-      filePath: mediaItem.filePath,
-      generatedUrl: mediaUrl,
-      type: mediaItem.type
-    });
-    
-    // Simply navigate to watch page
-    window.location.href = `/watch/${mediaItem._id}`;
+  const handlePlayMedia = (mediaItem: Media) => {
+    console.log('Playing media:', mediaItem.title);
+    router.push(`/watch/${mediaItem._id}`);
+  };
+
+  const handleCardClick = (mediaItem: Media, event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    handlePlayMedia(mediaItem);
   };
 
   const handleAddToList = (mediaId: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    // Simple local storage implementation for demo
     try {
       const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
       if (!watchlist.includes(mediaId)) {
         watchlist.push(mediaId);
         localStorage.setItem('watchlist', JSON.stringify(watchlist));
         console.log('Added to local watchlist:', mediaId);
-        // You could show a toast notification here
       }
     } catch (error) {
       console.error('Error adding to watchlist:', error);
@@ -129,16 +137,7 @@ export default function ContentRow({
   }
 
   if (media.length === 0) {
-    return (
-      <section className="px-6 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-white">{title}</h2>
-        </div>
-        <div className="text-center text-gray-400 py-8">
-          No media found in this category.
-        </div>
-      </section>
-    );
+    return null;
   }
 
   return (
@@ -161,11 +160,11 @@ export default function ContentRow({
           <div 
             key={mediaItem._id} 
             className="flex-shrink-0 w-98 group cursor-pointer"
-            onClick={(e) => handlePlayMedia(mediaItem, e)}
+            onClick={(e) => handleCardClick(mediaItem, e)}
           >
             <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl overflow-hidden group-hover:scale-105 transition-all duration-300 hover:shadow-2xl hover:shadow-red-500/20 border border-gray-700/50 hover:border-red-500/30">
               
-              {/* Image Container with Overlay Effects */}
+              {/* Image Container */}
               <div className="relative overflow-hidden">
                 <div
                   className="w-full h-64 bg-cover bg-center relative bg-gray-800"
@@ -208,6 +207,10 @@ export default function ContentRow({
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <button 
                       type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayMedia(mediaItem);
+                      }}
                       className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full transform group-hover:scale-110 transition-transform duration-300 shadow-2xl"
                       aria-label={`Play ${mediaItem.title}`}
                     >
@@ -217,9 +220,9 @@ export default function ContentRow({
                     </button>
                   </div>
 
-                  {/* Bottom Gradient & Progress */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent pt-8 pb-3 px-3">
-                    {showProgress && (
+                  {/* Progress Bar */}
+                  {showProgress && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent pt-8 pb-3 px-3">
                       <div className="mb-2">
                         <div className="text-white text-xs font-medium mb-1 flex justify-between">
                           <span>Progress</span>
@@ -232,8 +235,8 @@ export default function ContentRow({
                           />
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

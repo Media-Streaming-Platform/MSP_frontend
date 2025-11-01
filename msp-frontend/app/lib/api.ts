@@ -137,33 +137,48 @@ class ApiService {
 
   // Utility methods
  // In lib/api.ts - update getMediaUrl method
+// lib/api.ts - Updated getMediaUrl method
 getMediaUrl(media: Media): string {
   if (media.filePath) {
     console.log('Original filePath:', media.filePath);
     
-    // Handle HLS master playlist path
-    if (media.filePath.includes('master.m3u8')) {
-      // For paths like: /uploads/hls/1761985012020-765946606/master.m3u8
-      // Extract the relative path and build full URL
-      const pathParts = media.filePath.split('uploads/hls/');
-      if (pathParts.length > 1) {
-        const hlsUrl = `${API_BASE_URL}/uploads/hls/${pathParts[1]}`;
-        console.log('Generated HLS URL:', hlsUrl);
-        return hlsUrl;
+    // Handle Windows paths (C:\Users\...)
+    if (media.filePath.includes('C:\\')) {
+      console.log('Windows path detected');
+      // Extract just the folder name from Windows path for HLS
+      const pathParts = media.filePath.split('\\');
+      const hlsFolder = pathParts.find(part => part.includes('hls'));
+      const masterIndex = pathParts.indexOf('master.m3u8');
+      
+      if (masterIndex > 0) {
+        const folderName = pathParts[masterIndex - 1];
+        return `${API_BASE_URL}/uploads/hls/${folderName}/master.m3u8`;
       }
+    }
+    
+    // Handle Linux paths starting with /uploads/hls/
+    if (media.filePath.includes('/uploads/hls/')) {
+      console.log('Linux HLS path detected');
+      // Extract path after /uploads/hls/
+      const pathAfterUploads = media.filePath.split('/uploads/hls/')[1];
+      if (pathAfterUploads) {
+        return `${API_BASE_URL}/uploads/hls/${pathAfterUploads}`;
+      }
+    }
+    
+    // Handle relative paths that start with /uploads/
+    if (media.filePath.startsWith('/uploads/')) {
+      console.log('Relative uploads path detected');
+      return `${API_BASE_URL}${media.filePath}`;
     }
     
     // If it's already a full URL, return as is
     if (media.filePath.startsWith('http')) {
+      console.log('Full URL detected');
       return media.filePath;
     }
     
-    // For relative paths starting with /
-    if (media.filePath.startsWith('/')) {
-      return `${API_BASE_URL}${media.filePath}`;
-    }
-    
-    // Default case
+    console.log('Default path handling');
     return `${API_BASE_URL}/${media.filePath}`;
   }
   
