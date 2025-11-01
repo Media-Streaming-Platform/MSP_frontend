@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Header from './components/Header';
-import BottomNavigation from './components/BottomNavigation';
 
 export const metadata: Metadata = {
   title: 'StreamFlux - Your Ultimate Streaming Platform',

@@ -286,13 +286,11 @@ export default function Header() {
                       onClick={handleSearchResultClick}
                     >
                       <div
-                        className="w-12 h-16 bg-cover bg-center rounded flex-shrink-0"
+                        className="w-12 h-16 bg-cover bg-center rounded flex-shrink-0 bg-gray-700"
                         style={{
-                          backgroundImage: `url('${apiService.getThumbnailUrl(
+                          backgroundImage: `url('${apiService.getVideoThumbnail(
                             media
                           )}')`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
                         }}
                       />
                       <div className="flex-1 min-w-0">
@@ -300,11 +298,9 @@ export default function Header() {
                           {media.title}
                         </h4>
                         <p className="text-gray-400 text-sm truncate">
-                          {media.categories?.name} •{" "}
+                          {/* Fix: Use getCategoryName method instead of direct access */}
+                          {apiService.getCategoryName(media)} •{" "}
                           {apiService.formatMediaType(media.type)}
-                        </p>
-                        <p className="text-gray-500 text-xs">
-                          {media.numberOfViews} views
                         </p>
                       </div>
                     </Link>
