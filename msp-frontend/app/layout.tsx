@@ -20,7 +20,6 @@ export default function RootLayout({
         <main className="pt-20">
           {children}
         </main>
-        <BottomNavigation />
       </body>
     </html>
   );
