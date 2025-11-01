@@ -1,7 +1,7 @@
 // components/Header.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { apiService, Media, Category } from '../lib/api';
 
@@ -16,6 +16,9 @@ export default function Header() {
   const [isSearching, setIsSearching] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -32,6 +35,13 @@ export default function Header() {
 
     fetchCategories();
   }, []);
+
+  // Focus search input when search opens
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
 
   // Close all menus when search opens
   useEffect(() => {
@@ -62,17 +72,24 @@ export default function Header() {
 
   // Close menus when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
-      setIsSearchOpen(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
       setIsProfileMenuOpen(false);
       setIsFilterOpen(false);
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const performSearch = useCallback(async () => {
+    if (searchQuery.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+
     setIsSearching(true);
     try {
       const results = await apiService.searchMedia(searchQuery);
@@ -88,7 +105,11 @@ export default function Header() {
   // Search functionality
   useEffect(() => {
     if (searchQuery.length > 2) {
-      performSearch();
+      const timeoutId = setTimeout(() => {
+        performSearch();
+      }, 300); // Debounce search
+
+      return () => clearTimeout(timeoutId);
     } else {
       setSearchResults([]);
     }
@@ -98,6 +119,34 @@ export default function Header() {
     setIsSearchOpen(false);
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  const handleSearchButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSearchOpen(true);
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSearchInputClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleCloseSearch = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    }
   };
 
   return (
@@ -127,7 +176,7 @@ export default function Header() {
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">MSP</span>
               </div>
-            
+              <span className="text-white font-bold text-lg hidden sm:block">Media Streaming Platform</span>
             </Link>
           </div>
 
@@ -217,29 +266,27 @@ export default function Header() {
             )}
             
             {/* Search Bar */}
-            <div className="relative">
+            <div className="relative" ref={searchContainerRef}>
               {isSearchOpen ? (
                 <div 
                   className="flex items-center bg-black/80 border border-gray-700 rounded-lg px-3 py-2"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={handleSearchInputClick}
                 >
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Search videos, audio..."
                     className="bg-transparent border-none outline-none text-white w-40 sm:w-64 px-2"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchInputChange}
+                    onKeyDown={handleSearchKeyDown}
                     autoFocus
                   />
                   {isSearching && (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500 mr-2"></div>
                   )}
                   <button 
-                    onClick={() => {
-                      setIsSearchOpen(false);
-                      setSearchQuery('');
-                      setSearchResults([]);
-                    }}
+                    onClick={handleCloseSearch}
                     className="text-gray-400 hover:text-white transition-colors p-1 ml-2"
                     aria-label="Close search"
                   >
@@ -248,10 +295,7 @@ export default function Header() {
                 </div>
               ) : (
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsSearchOpen(true);
-                  }}
+                  onClick={handleSearchButtonClick}
                   className="text-gray-400 hover:text-white transition-colors p-2"
                   aria-label="Open search"
                 >
@@ -264,7 +308,7 @@ export default function Header() {
               {/* Search Results Dropdown */}
               {isSearchOpen && searchResults.length > 0 && (
                 <div 
-                  className="absolute top-full left-0 right-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl mt-2 max-h-96 overflow-y-auto"
+                  className="absolute top-full left-0 right-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl mt-2 max-h-96 overflow-y-auto z-50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {searchResults.map((media) => (
@@ -294,7 +338,7 @@ export default function Header() {
               {/* No Results Message */}
               {isSearchOpen && searchQuery.length > 2 && !isSearching && searchResults.length === 0 && (
                 <div 
-                  className="absolute top-full left-0 right-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl mt-2 p-4"
+                  className="absolute top-full left-0 right-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl mt-2 p-4 z-50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <p className="text-gray-400 text-center">
@@ -325,7 +369,7 @@ export default function Header() {
               {/* Profile Dropdown */}
               {isProfileMenuOpen && (
                 <div 
-                  className="absolute right-0 top-12 bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-48 py-2"
+                  className="absolute right-0 top-12 bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-48 py-2 z-50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="px-4 py-2 border-b border-gray-700">
