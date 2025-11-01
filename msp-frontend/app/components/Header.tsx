@@ -95,9 +95,9 @@ export default function Header() {
               <div className="w-8 h-8 bg-gradient-to-r from-red-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">MSP</span>
               </div>
-              <span className="text-white font-bold text-xl hidden sm:block">
+              {/* <span className="text-white font-bold text-xl hidden sm:block">
                 Media Streaming Platform
-              </span>
+              </span> */}
             </Link>
 
             {/* Navigation Links - Hidden on mobile */}
