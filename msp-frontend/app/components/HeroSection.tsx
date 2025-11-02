@@ -183,7 +183,7 @@ export default function HeroSection() {
             <div className="hidden sm:flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/10">
               <span className="text-green-400 text-lg">⏱️</span>
               <span className="text-white font-semibold">
-                {featuredMedia?.duration || '1:30:00'}
+                {/* {featuredMedia?.duration || '1:30:00'} */}
               </span>
             </div>
           </div>

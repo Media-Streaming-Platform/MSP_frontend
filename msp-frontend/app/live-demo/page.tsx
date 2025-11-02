@@ -7,7 +7,7 @@ import Hls from 'hls.js';
 export default function LivePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const reactionCounterRef = useRef(0);
+  const reactionCounterRef = useRef(0); // Fixed: Use counter instead of Date.now()
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,15 +15,9 @@ export default function LivePage() {
   const [viewerCount, setViewerCount] = useState(1247);
   const [reactions, setReactions] = useState<{ type: string; id: number }[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [reactionDelays, setReactionDelays] = useState<number[]>([]);
 
   // Your HLS stream URL
   const m3u8Url = "https://462dx4mlqj3o-hls-live.wmncdn.net/jnvisiontv/0e1fd802947a734b3af7787436f11588.sdp/chunks.m3u8";
-
-  // Initialize reaction delays after component mounts (client-side only)
-  useEffect(() => {
-    setReactionDelays([0.1, 0.2, 0.3, 0.4, 0.5]); // Fixed: Use predetermined delays instead of Math.random()
-  }, []);
 
   // Simulate viewer count changes
   useEffect(() => {
@@ -39,18 +33,13 @@ export default function LivePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Add reaction
+  // Add reaction - FIXED: Use counter instead of Date.now()
   const addReaction = (type: string) => {
     const id = reactionCounterRef.current++;
     setReactions(prev => [...prev, { type, id }]);
     setTimeout(() => {
       setReactions(prev => prev.filter(r => r.id !== id));
     }, 3000);
-  };
-
-  // Get delay for reaction animation - FIXED: Use predetermined delays
-  const getReactionDelay = (index: number) => {
-    return reactionDelays[index % reactionDelays.length] || 0;
   };
 
   useEffect(() => {
@@ -196,12 +185,12 @@ export default function LivePage() {
                 
                 {/* Floating Reactions */}
                 <div className="absolute top-4 right-4 space-y-2">
-                  {reactions.map((reaction, index) => (
+                  {reactions.map(reaction => (
                     <div
                       key={reaction.id}
                       className="animate-bounce text-2xl"
                       style={{
-                        animationDelay: `${getReactionDelay(index)}s` // FIXED: Use predetermined delays
+                        animationDelay: `${Math.random() * 0.5}s`
                       }}
                     >
                       {reaction.type}
@@ -449,7 +438,7 @@ export default function LivePage() {
             </h3>
             <p className="text-gray-300 mb-6 text-lg leading-relaxed">
               Join us for an uplifting Sunday worship experience featuring powerful messages from Scripture, 
-              inspiring worship music, and meaningful community fellowship. Today&apos;s message focuses on the 
+              inspiring worship music, and meaningful community fellowship. Today's message focuses on the 
               Beatitudes from Matthew 5.
             </p>
             <div className="flex flex-wrap gap-3">
@@ -466,7 +455,7 @@ export default function LivePage() {
               Need Assistance?
             </h3>
             <p className="text-gray-300 mb-6 text-lg">
-              Having trouble with the stream? We&apos;re here to help you get the best viewing experience.
+              Having trouble with the stream? We're here to help you get the best viewing experience.
             </p>
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-3 bg-gray-700/30 rounded-lg">
