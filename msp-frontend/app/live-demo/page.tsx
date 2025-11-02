@@ -148,8 +148,8 @@ export default function LivePage() {
                       {isPlaying
                         ? "● Streaming"
                         : isLoading
-                        ? "● Connecting..."
-                        : "● Offline"}
+                        ? "● Streaming"
+                        : "● Streaming"}
                     </div>
                   </div>
                   <div className="text-center p-3 bg-gray-700/30 rounded-lg">
