@@ -173,19 +173,9 @@ export default function HeroSection() {
               </span>
             </div>
             
-            <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/10">
-              <span className="text-yellow-400 text-lg">⭐</span>
-              <span className="text-white font-semibold">
-                {(featuredMedia?.numberOfViews || 0).toLocaleString()} views
-              </span>
-            </div>
+        
 
-            <div className="hidden sm:flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/10">
-              <span className="text-green-400 text-lg">⏱️</span>
-              <span className="text-white font-semibold">
-                {/* {featuredMedia?.duration || '1:30:00'} */}
-              </span>
-            </div>
+            
           </div>
           
           {/* Enhanced Title */}
@@ -218,10 +208,7 @@ export default function HeroSection() {
 
            
 
-            <button className="group relative bg-transparent hover:bg-white/10 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white px-6 py-4 rounded-2xl font-semibold text-lg flex items-center gap-3 transition-all duration-300 transform hover:scale-105">
-              <span className="text-lg">ℹ️</span>
-              <span>More Info</span>
-            </button>
+           
           </div>
 
           {/* Additional Info */}

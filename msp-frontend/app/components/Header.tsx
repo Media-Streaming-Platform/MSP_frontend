@@ -27,6 +27,10 @@ export default function Header() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   // Handle scroll effect
   useEffect(() => {
@@ -69,22 +73,45 @@ export default function Header() {
     }
   }, [isSearchOpen]);
 
-  // Close all menus when clicking outside
+  // Close menus when clicking outside - FIXED VERSION
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      // Close search if clicking outside
       if (
         searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
+        !searchContainerRef.current.contains(target)
       ) {
         setIsSearchOpen(false);
       }
-      setIsProfileMenuOpen(false);
-      setIsFilterOpen(false);
+
+      // Close filter dropdown if clicking outside
+      if (
+        isFilterOpen &&
+        filterButtonRef.current &&
+        !filterButtonRef.current.contains(target) &&
+        filterDropdownRef.current &&
+        !filterDropdownRef.current.contains(target)
+      ) {
+        setIsFilterOpen(false);
+      }
+
+      // Close profile dropdown if clicking outside
+      if (
+        isProfileMenuOpen &&
+        profileButtonRef.current &&
+        !profileButtonRef.current.contains(target) &&
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(target)
+      ) {
+        setIsProfileMenuOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isFilterOpen, isProfileMenuOpen]);
 
   const performSearch = useCallback(async () => {
     if (searchQuery.trim().length === 0) {
@@ -161,6 +188,31 @@ export default function Header() {
       setSearchQuery("");
       setSearchResults([]);
     }
+  };
+
+  const handleFilterButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsFilterOpen(!isFilterOpen);
+    // Close other menus when opening filter
+    if (!isFilterOpen) {
+      setIsProfileMenuOpen(false);
+      setIsSearchOpen(false);
+    }
+  };
+
+  const handleProfileButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsProfileMenuOpen(!isProfileMenuOpen);
+    // Close other menus when opening profile
+    if (!isProfileMenuOpen) {
+      setIsFilterOpen(false);
+      setIsSearchOpen(false);
+    }
+  };
+
+  // Add CMS URL method to apiService or define it here
+  const getCMSUrl = () => {
+return "https://msp-cms.vercel.app";
   };
 
   return (
@@ -340,10 +392,8 @@ export default function Header() {
             {!isSearchOpen && (
               <div className="relative hidden xl:block">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsFilterOpen(!isFilterOpen);
-                  }}
+                  ref={filterButtonRef}
+                  onClick={handleFilterButtonClick}
                   className="flex items-center gap-3 bg-black/30 border border-white/10 rounded-xl px-5 py-3 text-gray-300 hover:text-white hover:border-white/20 transition-all duration-300 backdrop-blur-sm group"
                   aria-label="Open filters"
                 >
@@ -369,6 +419,7 @@ export default function Header() {
                 {/* Enhanced Filter Dropdown */}
                 {isFilterOpen && (
                   <div
+                    ref={filterDropdownRef}
                     className="absolute right-0 top-16 bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-80 py-4 max-h-96 overflow-y-auto z-50"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -438,10 +489,8 @@ export default function Header() {
             {/* Enhanced Profile Menu */}
             <div className="relative">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsProfileMenuOpen(!isProfileMenuOpen);
-                }}
+                ref={profileButtonRef}
+                onClick={handleProfileButtonClick}
                 className="flex items-center gap-3 bg-black/30 border border-white/10 rounded-xl px-4 py-2 text-gray-300 hover:text-white hover:border-white/20 transition-all duration-300 backdrop-blur-sm group"
                 aria-label="Open user menu"
               >
@@ -463,8 +512,9 @@ export default function Header() {
               {/* Enhanced Profile Dropdown */}
               {isProfileMenuOpen && (
                 <div
+                  ref={profileDropdownRef}
                   className="absolute right-0 top-16 bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-64 py-4 z-50"
-                  /* onClick={(e) => e.stopPropagation()} */
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div className="px-6 py-3 border-b border-white/10">
                     <p className="text-white font-semibold">User Account</p>
@@ -473,7 +523,7 @@ export default function Header() {
 
                   <div className="py-2">
                     <a
-                      href={apiService.getCMSUrl()}
+                      href={getCMSUrl()}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 px-6 py-3 text-blue-400 hover:bg-white/5 hover:text-blue-300 transition-all duration-300 group"
@@ -483,14 +533,32 @@ export default function Header() {
                       </svg>
                       Content Management
                     </a>
+                    
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-3 px-6 py-3 text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-300 group"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Profile Settings
+                    </Link>
+                    
+                    <Link
+                      href="/logout"
+                      className="flex items-center gap-3 px-6 py-3 text-red-400 hover:bg-white/5 hover:text-red-300 transition-all duration-300 group border-t border-white/10 mt-2 pt-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Sign Out
+                    </Link>
                   </div>
                 </div>
               )}
             </div>
           </div>
         </div>
-
-      
       </div>
     </header>
   );
