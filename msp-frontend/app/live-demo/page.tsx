@@ -141,8 +141,8 @@ export default function LivePage() {
                         isPlaying
                           ? "text-green-400"
                           : isLoading
-                          ? "text-yellow-400"
-                          : "text-red-400"
+                          ? "text-green-400"
+                          : "text-green-400"
                       }`}
                     >
                       {isPlaying
