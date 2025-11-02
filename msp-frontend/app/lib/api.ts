@@ -1,5 +1,6 @@
-// lib/api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://msp-backend-kxj1.onrender.com';
+// lib/api.ts - Add the missing endpoints
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const CMS_BASE_URL = process.env.NEXT_PUBLIC_CMS_URL || ''; // Add your CMS URL here
 
 export interface Category {
   _id: string;
@@ -71,7 +72,20 @@ class ApiService {
     });
   }
 
-  // Media endpoints
+  async updateCategory(id: string, name: string): Promise<{ message: string; category: Category }> {
+    return this.fetchApi(`/category/update-category/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async deleteCategory(id: string): Promise<{ message: string }> {
+    return this.fetchApi(`/category/delete-category/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Media endpoints - ALL endpoints
   async getAllMedia(): Promise<MediaResponse> {
     return this.fetchApi('/media/get-all');
   }
@@ -82,6 +96,19 @@ class ApiService {
 
   async getMediaByCategory(categoryId: string): Promise<Media[]> {
     return this.fetchApi(`/media/get-by-category/${categoryId}`);
+  }
+
+  async updateMedia(id: string, updates: Partial<Media>): Promise<{ message: string; media: Media }> {
+    return this.fetchApi(`/media/update-media/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteMedia(id: string): Promise<{ message: string }> {
+    return this.fetchApi(`/media/delete-media/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   async getFeaturedMedia(): Promise<Media[]> {
@@ -136,56 +163,50 @@ class ApiService {
   }
 
   // Utility methods
- // In lib/api.ts - update getMediaUrl method
-// lib/api.ts - Updated getMediaUrl method
+  // lib/api.ts - Update getMediaUrl method
 getMediaUrl(media: Media): string {
-  if (media.filePath) {
-    console.log('Original filePath:', media.filePath);
-    
-    // Handle Windows paths (C:\Users\...)
-    if (media.filePath.includes('C:\\')) {
-      console.log('Windows path detected');
-      // Extract just the folder name from Windows path for HLS
+  if (!media.filePath) {
+    console.warn('No filePath found for media:', media._id);
+    return '';
+  }
+
+  console.log('Original filePath:', media.filePath);
+
+  // If it's already a full URL, return as is
+  if (media.filePath.startsWith('http')) {
+    return media.filePath;
+  }
+
+  // Handle Windows paths (C:\Users\...)
+  if (media.filePath.includes('C:\\')) {
+    console.log('Windows path detected');
+    // Extract the folder name for HLS files
+    if (media.filePath.includes('master.m3u8')) {
       const pathParts = media.filePath.split('\\');
-      const hlsFolder = pathParts.find(part => part.includes('hls'));
       const masterIndex = pathParts.indexOf('master.m3u8');
-      
       if (masterIndex > 0) {
         const folderName = pathParts[masterIndex - 1];
         return `${API_BASE_URL}/uploads/hls/${folderName}/master.m3u8`;
       }
     }
-    
-    // Handle Linux paths starting with /uploads/hls/
-    if (media.filePath.includes('/uploads/hls/')) {
-      console.log('Linux HLS path detected');
-      // Extract path after /uploads/hls/
-      const pathAfterUploads = media.filePath.split('/uploads/hls/')[1];
-      if (pathAfterUploads) {
-        return `${API_BASE_URL}/uploads/hls/${pathAfterUploads}`;
-      }
-    }
-    
-    // Handle relative paths that start with /uploads/
-    if (media.filePath.startsWith('/uploads/')) {
-      console.log('Relative uploads path detected');
-      return `${API_BASE_URL}${media.filePath}`;
-    }
-    
-    // If it's already a full URL, return as is
-    if (media.filePath.startsWith('http')) {
-      console.log('Full URL detected');
-      return media.filePath;
-    }
-    
-    console.log('Default path handling');
-    return `${API_BASE_URL}/${media.filePath}`;
   }
-  
-  console.warn('No filePath found for media:', media._id);
-  return '';
-}
 
+  // Handle relative paths starting with /uploads/
+  if (media.filePath.startsWith('/uploads/')) {
+    return `${API_BASE_URL}${media.filePath}`;
+  }
+
+  // Handle paths that contain uploads/ but don't start with /
+  if (media.filePath.includes('uploads/')) {
+    // Extract everything after uploads/
+    const uploadsIndex = media.filePath.indexOf('uploads/');
+    const relativePath = media.filePath.substring(uploadsIndex);
+    return `${API_BASE_URL}/${relativePath}`;
+  }
+
+  // Default case - just prepend base URL
+  return `${API_BASE_URL}/${media.filePath}`;
+}
   getThumbnailUrl(media: Media): string {
     // If thumbnail exists in database
     if (media.thumbnail) {
@@ -219,9 +240,14 @@ getMediaUrl(media: Media): string {
   }
 
   getCategoryName(media: Media): string {
+    if (!media.categories) {
+      return 'Uncategorized';
+    }
+    
     if (typeof media.categories === 'string') {
       return 'Unknown Category';
     }
+    
     return media.categories?.name || 'Uncategorized';
   }
 
@@ -231,6 +257,11 @@ getMediaUrl(media: Media): string {
       return a & a;
     }, 0);
     return Math.abs(hash) % 80 + 10;
+  }
+
+  // CMS URL
+  getCMSUrl(): string {
+    return CMS_BASE_URL;
   }
 }
 
