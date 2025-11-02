@@ -1,28 +1,207 @@
-// app/live/page.tsx
+// app/live-demo/page.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 
-export default function LivePage() {
+export default function LiveDemoPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const reactionCounterRef = useRef(0); // Fixed: Use counter instead of Date.now()
+  const statsIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [latency, setLatency] = useState<number | null>(null);
+  const [stallCount, setStallCount] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState('⏳ Connecting to stream...');
+  const [lastPlaybackTime, setLastPlaybackTime] = useState(0);
   const [showChat, setShowChat] = useState(true);
   const [viewerCount, setViewerCount] = useState(1247);
   const [reactions, setReactions] = useState<{ type: string; id: number }[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const reactionCounterRef = useRef(0);
 
-  // Your HLS stream URL
-  const m3u8Url = "https://462dx4mlqj3o-hls-live.wmncdn.net/jnvisiontv/0e1fd802947a734b3af7787436f11588.sdp/chunks.m3u8";
+  // Low-latency HLS stream URL
+  const m3u8Url = "https://pub-e0bdd32b9eeb4a6d8a15fb9bf208a93e.r2.dev/live_stream/index.m3u8";
+
+  // Initialize HLS player with low-latency configuration
+  const initPlayer = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    console.log('Initializing low-latency HLS stream:', m3u8Url);
+
+    if (Hls.isSupported()) {
+      // Destroy existing HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+
+      const hls = new Hls({
+        enableWorker: true,  // Use worker for better performance
+        lowLatencyMode: true,
+        backBufferLength: 1,  // Reduced buffer
+        maxBufferLength: 10,
+        maxMaxBufferLength: 20,
+        maxBufferSize: 10 * 1000 * 1000, // 10MB
+        maxBufferHole: 0.5,
+        highBufferWatchdogPeriod: 1,
+        nudgeOffset: 0.05,
+        nudgeMaxRetry: 1,
+        maxFragLookUpTolerance: 0.1,
+        liveSyncDurationCount: 2,  // Reduced from default
+        liveMaxLatencyDurationCount: 3,
+        liveDurationInfinity: false,
+        maxLiveSyncPlaybackRate: 1.1,
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 3,
+        manifestLoadingRetryDelay: 500,
+        levelLoadingTimeOut: 10000,
+        levelLoadingMaxRetry: 3,
+        levelLoadingRetryDelay: 500,
+        fragLoadingTimeOut: 12000,
+        fragLoadingMaxRetry: 3,
+        fragLoadingRetryDelay: 500,
+      });
+
+      hlsRef.current = hls;
+
+      hls.loadSource(m3u8Url);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('HLS manifest parsed successfully');
+        setConnectionStatus('🎥 Live stream connected');
+        setIsLoading(false);
+        setError(null);
+        video.play().catch(e => {
+          console.log('Autoplay failed:', e);
+          setIsPlaying(false);
+        });
+        startStatsMonitoring();
+      });
+
+      hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+        console.log('Level loaded, live sync:', hls.liveSyncPosition);
+        setIsPlaying(true);
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.warn('HLS error:', data);
+        
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              setConnectionStatus('🔁 Network error, reloading...');
+              setError('Network error - attempting to reconnect...');
+              setTimeout(() => reloadStream(), 1000);
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              setConnectionStatus('🔁 Media error, recovering...');
+              setError('Media error - attempting to recover...');
+              hls.recoverMediaError();
+              break;
+            default:
+              reloadStream();
+              break;
+          }
+        }
+      });
+
+      // Monitor buffering state
+      const handleWaiting = () => {
+        setStallCount(prev => prev + 1);
+        setConnectionStatus('⏳ Buffering...');
+      };
+
+      const handlePlaying = () => {
+        setConnectionStatus('🎥 Live');
+        setIsPlaying(true);
+      };
+
+      video.addEventListener('waiting', handleWaiting);
+      video.addEventListener('playing', handlePlaying);
+
+      return () => {
+        video.removeEventListener('waiting', handleWaiting);
+        video.removeEventListener('playing', handlePlaying);
+      };
+
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support (Safari)
+      console.log('Using native HLS support');
+      video.src = m3u8Url;
+      setConnectionStatus('🎥 Using native HLS');
+      setIsLoading(false);
+      setError(null);
+      setIsPlaying(true);
+      
+      video.addEventListener('loadeddata', () => {
+        setIsLoading(false);
+        setError(null);
+        setIsPlaying(true);
+      });
+      
+      video.addEventListener('error', () => {
+        setError('Failed to load live stream');
+        setIsLoading(false);
+      });
+    } else {
+      setError('Your browser does not support HLS streaming');
+      setIsLoading(false);
+    }
+  };
+
+  // Stats monitoring for latency and stall detection
+  const startStatsMonitoring = () => {
+    if (statsIntervalRef.current) {
+      clearInterval(statsIntervalRef.current);
+    }
+
+    statsIntervalRef.current = setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.seeking || video.paused) return;
+
+      // Detect stalls
+      if (video.currentTime === lastPlaybackTime) {
+        setStallCount(prev => {
+          const newCount = prev + 1;
+          if (newCount > 3) {
+            console.log('Stream stalled, reloading...');
+            reloadStream();
+            return 0;
+          }
+          return newCount;
+        });
+      } else {
+        setStallCount(0);
+      }
+      setLastPlaybackTime(video.currentTime);
+
+      // Estimate latency
+      if (hlsRef.current && hlsRef.current.liveSyncPosition) {
+        const currentLatency = hlsRef.current.liveSyncPosition - video.currentTime;
+        setLatency(currentLatency);
+      }
+    }, 1000);
+  };
+
+  const reloadStream = () => {
+    console.log('Reloading stream...');
+    setConnectionStatus('🔁 Reloading stream...');
+    setError(null);
+    setIsLoading(true);
+    initPlayer();
+  };
 
   // Simulate viewer count changes
   useEffect(() => {
     const interval = setInterval(() => {
-      setViewerCount(prev => prev + Math.floor(Math.random() * 10) - 3);
+      setViewerCount(prev => {
+        const change = Math.floor(Math.random() * 10) - 3;
+        return Math.max(1000, prev + change);
+      });
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -33,7 +212,7 @@ export default function LivePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Add reaction - FIXED: Use counter instead of Date.now()
+  // Add reaction
   const addReaction = (type: string) => {
     const id = reactionCounterRef.current++;
     setReactions(prev => [...prev, { type, id }]);
@@ -42,85 +221,30 @@ export default function LivePage() {
     }, 3000);
   };
 
+  // Initialize player on component mount
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    initPlayer();
 
-    console.log('Initializing HLS stream:', m3u8Url);
+    // Auto-reload if page becomes visible after being hidden
+    const handleVisibilityChange = () => {
+      const video = videoRef.current;
+      if (!document.hidden && video && (video.paused || video.ended)) {
+        reloadStream();
+      }
+    };
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: false,
-        lowLatencyMode: true,
-        backBufferLength: 90,
-        debug: false,
-      });
-      
-      hlsRef.current = hls;
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      hls.loadSource(m3u8Url);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('HLS manifest parsed successfully');
-        setIsLoading(false);
-        setError(null);
-        video.play().catch(e => {
-          console.log('Autoplay failed:', e);
-          setIsPlaying(false);
-        });
-      });
-
-      hls.on(Hls.Events.LEVEL_LOADED, () => {
-        setIsPlaying(true);
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS error:', data);
-        
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('Network error, trying to recover...');
-              setError('Network error - attempting to reconnect...');
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('Media error, recovering...');
-              hls.recoverMediaError();
-              break;
-            default:
-              console.log('Fatal error, cannot recover');
-              setError('Stream error - please try again later');
-              setIsLoading(false);
-              break;
-          }
-        }
-      });
-
-      return () => {
-        if (hlsRef.current) {
-          hlsRef.current.destroy();
-        }
-      };
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support (Safari)
-      console.log('Using native HLS support');
-      video.src = m3u8Url;
-      video.addEventListener('loadeddata', () => {
-        setIsLoading(false);
-        setError(null);
-        setIsPlaying(true);
-      });
-      video.addEventListener('error', () => {
-        setError('Failed to load live stream');
-        setIsLoading(false);
-      });
-    } else {
-      setError('Your browser does not support HLS streaming');
-      setIsLoading(false);
-    }
-  }, [m3u8Url]);
+    return () => {
+      if (statsIntervalRef.current) {
+        clearInterval(statsIntervalRef.current);
+      }
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const handlePlayPause = () => {
     const video = videoRef.current;
@@ -156,14 +280,14 @@ export default function LivePage() {
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-3 mb-4">
             <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-            <span className="text-red-400 font-semibold tracking-wider">LIVE NOW</span>
+            <span className="text-red-400 font-semibold tracking-wider">LOW LATENCY DEMO</span>
             <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
           </div>
           <h1 className="text-5xl font-bold text-white mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-            Sunday Worship Service
+            Low-Latency Live Stream
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Join our live Christian streaming service with messages of hope and worship
+            Testing ultra-low latency HLS streaming with real-time monitoring
           </p>
         </div>
 
@@ -178,19 +302,20 @@ export default function LivePage() {
                   ref={videoRef}
                   controls={false}
                   className="w-full h-auto max-h-[70vh]"
-                  poster="/live-poster.jpg"
+                  muted
+                  playsInline
                 >
                   Your browser does not support the video tag.
                 </video>
                 
                 {/* Floating Reactions */}
                 <div className="absolute top-4 right-4 space-y-2">
-                  {reactions.map(reaction => (
+                  {reactions.map((reaction, index) => (
                     <div
                       key={reaction.id}
                       className="animate-bounce text-2xl"
                       style={{
-                        animationDelay: `${Math.random() * 0.5}s`
+                        animationDelay: `${index * 0.1}s`
                       }}
                     >
                       {reaction.type}
@@ -206,8 +331,8 @@ export default function LivePage() {
                         <div className="w-16 h-16 border-4 border-red-600/30 rounded-full animate-spin"></div>
                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 border-4 border-red-600 rounded-full border-t-transparent animate-spin"></div>
                       </div>
-                      <p className="text-white text-lg mt-4 font-semibold">Loading Live Stream</p>
-                      <p className="text-gray-400 text-sm mt-2">Connecting to server...</p>
+                      <p className="text-white text-lg mt-4 font-semibold">Initializing Low-Latency Stream</p>
+                      <p className="text-gray-400 text-sm mt-2">{connectionStatus}</p>
                     </div>
                   </div>
                 )}
@@ -225,13 +350,10 @@ export default function LivePage() {
                       <p className="text-gray-300 mb-6">{error}</p>
                       <div className="flex gap-3 justify-center">
                         <button
-                          onClick={() => window.location.reload()}
+                          onClick={reloadStream}
                           className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
                         >
                           🔄 Retry Connection
-                        </button>
-                        <button className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-all">
-                          📞 Get Help
                         </button>
                       </div>
                     </div>
@@ -309,37 +431,47 @@ export default function LivePage() {
               <div className="p-6 border-t border-gray-700/50">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Sunday Worship Service - Live</h2>
-                    <p className="text-gray-400">With Pastor John Smith • Matthew 5:1-12</p>
+                    <h2 className="text-2xl font-bold text-white mb-2">Low-Latency HLS Stream Demo</h2>
+                    <p className="text-gray-400">Testing ultra-low latency configuration</p>
                   </div>
                   <div className="flex gap-3">
-                    <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 flex items-center gap-2">
-                      <span>❤️</span> Like
-                    </button>
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 flex items-center gap-2">
-                      <span>🔗</span> Share
+                    <button 
+                      onClick={reloadStream}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 flex items-center gap-2"
+                    >
+                      <span>🔄</span> Restart Stream
                     </button>
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6 text-sm">
-                  <div className="text-center p-3 bg-gray-700/30 rounded-lg">
+                  <div className={`text-center p-3 rounded-lg ${
+                    connectionStatus.includes('Live') ? 'bg-green-600/20' : 
+                    connectionStatus.includes('Buffering') ? 'bg-yellow-600/20' : 
+                    'bg-red-600/20'
+                  }`}>
                     <div className="text-gray-400">Status</div>
-                    <div className={`font-semibold ${isPlaying ? 'text-green-400' : isLoading ? 'text-yellow-400' : 'text-red-400'}`}>
-                      {isPlaying ? '● Streaming' : isLoading ? '● Connecting...' : '● Offline'}
+                    <div className={`font-semibold ${
+                      connectionStatus.includes('Live') ? 'text-green-400' : 
+                      connectionStatus.includes('Buffering') ? 'text-yellow-400' : 
+                      'text-red-400'
+                    }`}>
+                      {connectionStatus}
                     </div>
                   </div>
                   <div className="text-center p-3 bg-gray-700/30 rounded-lg">
-                    <div className="text-gray-400">Quality</div>
-                    <div className="text-white font-semibold">Auto (HD Ready)</div>
+                    <div className="text-gray-400">Latency</div>
+                    <div className="text-white font-semibold">
+                      {latency !== null ? `${latency.toFixed(1)}s` : '--'}
+                    </div>
                   </div>
                   <div className="text-center p-3 bg-gray-700/30 rounded-lg">
-                    <div className="text-gray-400">Latency</div>
-                    <div className="text-white font-semibold">~3.2s</div>
+                    <div className="text-gray-400">Stalls</div>
+                    <div className="text-white font-semibold">{stallCount}</div>
                   </div>
                   <div className="text-center p-3 bg-gray-700/30 rounded-lg">
                     <div className="text-gray-400">Format</div>
-                    <div className="text-white font-semibold">HLS Stream</div>
+                    <div className="text-white font-semibold">Low-Latency HLS</div>
                   </div>
                 </div>
               </div>
@@ -353,7 +485,7 @@ export default function LivePage() {
               onClick={() => setShowChat(!showChat)}
               className="lg:hidden bg-gray-800 text-white p-3 rounded-lg w-full flex items-center justify-center gap-2"
             >
-              <span>{showChat ? 'Hide' : 'Show'} Chat & Info</span>
+              <span>{showChat ? 'Hide' : 'Show'} Info</span>
               <span>💬</span>
             </button>
 
@@ -369,39 +501,49 @@ export default function LivePage() {
                     <span className="text-white font-bold text-lg">{viewerCount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Peak Today</span>
-                    <span className="text-white font-bold">1,842</span>
+                    <span className="text-gray-400">Latency</span>
+                    <span className="text-white font-bold">
+                      {latency !== null ? `${latency.toFixed(1)}s` : '--'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Likes</span>
-                    <span className="text-white font-bold">327</span>
+                    <span className="text-gray-400">Stalls</span>
+                    <span className="text-white font-bold">{stallCount}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div className="bg-red-600 h-2 rounded-full" style={{width: '75%'}}></div>
+                    <div 
+                      className="h-2 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.max(0, 100 - (stallCount * 20))}%`,
+                        backgroundColor: stallCount === 0 ? '#10B981' : stallCount < 3 ? '#F59E0B' : '#EF4444'
+                      }}
+                    ></div>
                   </div>
                 </div>
               </div>
 
-              {/* Upcoming Events */}
+              {/* Technical Info */}
               <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/50">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <span>📅</span> Upcoming Events
+                  <span>⚙️</span> Technical Info
                 </h3>
-                <div className="space-y-4">
-                  {[
-                    { time: 'Tomorrow, 10:00 AM', title: 'Morning Service', type: 'Worship', live: true },
-                    { time: 'Wednesday, 7:00 PM', title: 'Bible Study', type: 'Teaching', live: false },
-                    { time: 'Friday, 8:00 PM', title: 'Youth Night', type: 'Fellowship', live: true }
-                  ].map((event, index) => (
-                    <div key={index} className="p-3 bg-gray-700/30 rounded-lg border-l-4 border-red-600">
-                      <div className="flex justify-between items-start mb-1">
-                        <p className="text-white font-medium">{event.title}</p>
-                        {event.live && <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">LIVE</span>}
-                      </div>
-                      <p className="text-gray-400 text-sm">{event.time}</p>
-                      <span className="text-red-400 text-xs font-medium">{event.type}</span>
-                    </div>
-                  ))}
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Buffer Size</span>
+                    <span className="text-white">1-10s</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Sync Duration</span>
+                    <span className="text-white">2 segments</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Worker</span>
+                    <span className="text-green-400">Enabled</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Low Latency</span>
+                    <span className="text-green-400">Active</span>
+                  </div>
                 </div>
               </div>
 
@@ -411,17 +553,23 @@ export default function LivePage() {
                   <span>⚡</span> Quick Actions
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg transition-all text-sm font-semibold">
-                    📖 Open Bible
+                  <button 
+                    onClick={reloadStream}
+                    className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-all text-sm font-semibold"
+                  >
+                    🔄 Restart
+                  </button>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg transition-all text-sm font-semibold"
+                  >
+                    🔃 Full Reload
                   </button>
                   <button className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg transition-all text-sm font-semibold">
-                    💬 Prayer Request
+                    📊 Stats
                   </button>
                   <button className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg transition-all text-sm font-semibold">
-                    🎵 Worship Songs
-                  </button>
-                  <button className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-lg transition-all text-sm font-semibold">
-                    📱 Get App
+                    🎛️ Config
                   </button>
                 </div>
               </div>
@@ -434,46 +582,46 @@ export default function LivePage() {
           <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 border border-gray-700/50">
             <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
               <div className="w-2 h-8 bg-red-600 rounded-full"></div>
-              About This Service
+              Low-Latency Configuration
             </h3>
             <p className="text-gray-300 mb-6 text-lg leading-relaxed">
-              Join us for an uplifting Sunday worship experience featuring powerful messages from Scripture, 
-              inspiring worship music, and meaningful community fellowship. Today's message focuses on the 
-              Beatitudes from Matthew 5.
+              This demo uses optimized HLS.js settings for ultra-low latency streaming:
+              reduced buffer sizes, faster segment loading, and real-time latency monitoring.
             </p>
             <div className="flex flex-wrap gap-3">
-              <span className="bg-red-600/20 text-red-400 px-3 py-1 rounded-full text-sm">Worship</span>
-              <span className="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full text-sm">Teaching</span>
-              <span className="bg-green-600/20 text-green-400 px-3 py-1 rounded-full text-sm">Community</span>
-              <span className="bg-purple-600/20 text-purple-400 px-3 py-1 rounded-full text-sm">Prayer</span>
+              <span className="bg-red-600/20 text-red-400 px-3 py-1 rounded-full text-sm">backBufferLength: 1</span>
+              <span className="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full text-sm">liveSyncDurationCount: 2</span>
+              <span className="bg-green-600/20 text-green-400 px-3 py-1 rounded-full text-sm">enableWorker: true</span>
+              <span className="bg-purple-600/20 text-purple-400 px-3 py-1 rounded-full text-sm">lowLatencyMode: true</span>
             </div>
           </div>
 
           <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 border border-gray-700/50">
             <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
               <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
-              Need Assistance?
+              Performance Monitoring
             </h3>
             <p className="text-gray-300 mb-6 text-lg">
-              Having trouble with the stream? We're here to help you get the best viewing experience.
+              Real-time monitoring detects stalls and automatically recovers the stream.
+              Latency is calculated by comparing playback position with live edge.
             </p>
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-3 bg-gray-700/30 rounded-lg">
                 <div className="w-10 h-10 bg-red-600/20 rounded-full flex items-center justify-center">
-                  <span className="text-red-400">🔄</span>
+                  <span className="text-red-400">📊</span>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Refresh Connection</p>
-                  <p className="text-gray-400 text-sm">Try reloading the page if stream stops</p>
+                  <p className="text-white font-semibold">Auto-Recovery</p>
+                  <p className="text-gray-400 text-sm">Automatically restarts on stall detection</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 p-3 bg-gray-700/30 rounded-lg">
                 <div className="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center">
-                  <span className="text-blue-400">📞</span>
+                  <span className="text-blue-400">⚡</span>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Technical Support</p>
-                  <p className="text-gray-400 text-sm">Contact our support team for help</p>
+                  <p className="text-white font-semibold">Latency Tracking</p>
+                  <p className="text-gray-400 text-sm">Real-time latency measurement</p>
                 </div>
               </div>
             </div>

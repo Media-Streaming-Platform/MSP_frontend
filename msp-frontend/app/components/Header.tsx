@@ -190,7 +190,6 @@ export default function Header() {
                 <span className="text-white font-bold text-xl bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                   Faith Stream
                 </span>
-                <span className="text-xs text-gray-400 font-medium">Divine Inspiration</span>
               </div>
             </Link>
 
