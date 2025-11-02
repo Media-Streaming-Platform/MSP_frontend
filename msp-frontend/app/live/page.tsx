@@ -15,16 +15,17 @@ export default function LivePage() {
   const [viewerCount, setViewerCount] = useState(1247);
   const [reactions, setReactions] = useState<{ type: string; id: number }[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [reactionDelays, setReactionDelays] = useState<number[]>([]);
+//   const [reactionDelays, setReactionDelays] = useState<number[]>([]);
+  // Instead of using useEffect, initialize the state directly
+
+
+
 
   // Your HLS stream URL
   const m3u8Url = "https://462dx4mlqj3o-hls-live.wmncdn.net/jnvisiontv/0e1fd802947a734b3af7787436f11588.sdp/chunks.m3u8";
 
   // Initialize reaction delays after component mounts (client-side only)
-  useEffect(() => {
-    setReactionDelays([0.1, 0.2, 0.3, 0.4, 0.5]); // Fixed: Use predetermined delays instead of Math.random()
-  }, []);
-
+ 
   // Simulate viewer count changes
   useEffect(() => {
     const interval = setInterval(() => {
